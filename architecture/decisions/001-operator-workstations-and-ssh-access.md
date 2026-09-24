@@ -1,8 +1,8 @@
 # ADR-001: Operator workstations and how Claude Code reaches the VPS
 
 Date: 2026-09-24
-Status: Accepted. `Laptop_FN` enrolled and verified 2026-09-24; decision 4 is not yet
-satisfied — see the note under it.
+Status: Accepted. `Laptop_FN` enrolled and verified 2026-09-24, and recorded in
+agent-system ADR-010 the same day. One open question under decision 4.
 
 ## Context
 
@@ -54,23 +54,31 @@ enrollment procedure written in `STATUS.md`:
    machines. The same applies to `komputer-marketing` when it is keyed.
 3. **Claude Code drives SSH through the Windows OpenSSH client, not Git Bash** — in this
    project's tooling that means the PowerShell tool rather than the Bash tool. This
-   follows `CLAUDE.md`'s existing preference for Windows-native commands, and here it is
-   load-bearing rather than stylistic: it is the only client that reaches the agent, so it
-   is the only one that can authenticate without a human typing the passphrase.
-4. **The key is held by the Windows `ssh-agent` service, set to start automatically,** so
-   that the passphrase is typed once per boot by the operator and Claude Code can use the
-   key unattended afterwards. The passphrase itself is never stored in this repo, never
-   passed on a command line, and never typed into a Claude Code tool call.
+   follows `CLAUDE.md`'s existing preference for Windows-native commands, and the reason is
+   latent rather than visible today: only the Windows client talks to the Windows
+   `ssh-agent` service. While keys stay passphrase-free (decision 4) either client
+   authenticates fine, which is exactly why the trap is easy to walk into — the day a
+   passphrase is added, Git Bash starts prompting for it and every tool call that uses it
+   hangs on a prompt nothing can answer.
+4. **Key handling follows the agent system's existing convention, which is passphrase-free.**
+   `Haxe_agent_system`'s `architecture/current.md` records the practice under "Access":
+   "private keys passphrase-free, for non-interactive automation". The key generated on
+   `Laptop_FN` on 2026-09-24 matches it — verified, not assumed: it authenticated with
+   `ssh -o BatchMode=yes` while the `ssh-agent` service was still `Stopped` and `Disabled`,
+   which is only possible if the client can read the private key unaided. Access therefore
+   rests on file permissions, and `icacls` confirms the file is readable only by `franc`,
+   `SYSTEM` and Administrators.
 
-   > **Not satisfied yet — measured 2026-09-24.** The keypair generated on `Laptop_FN` has
-   > **no passphrase**. It authenticated to the server with `ssh -o BatchMode=yes` while the
-   > `ssh-agent` service was still `Stopped` and `Disabled`, which is only possible if the
-   > client can read the private key unaided. Production access therefore rests on file
-   > permissions alone (`icacls` confirms the file is readable only by `franc`, `SYSTEM` and
-   > Administrators). The remedy is `ssh-keygen -p -f $env:USERPROFILE\.ssh\id_ed25519`
-   > followed by the agent setup in decision 4. Until then this is an open risk of exactly
-   > the shape as ADR-010's original password-authentication deferral, which stood for two
-   > months before it was closed.
+   > **Open question, raised 2026-09-24, for the operator rather than settled here.** A
+   > laptop is a different threat model from two fixed desktops, because it leaves the
+   > building, and that difference is the kind of justification `CLAUDE.md`'s unification
+   > rule asks for before a repo diverges from a shared convention. Diverging would mean
+   > `ssh-keygen -p -f $env:USERPROFILE\.ssh\id_ed25519` plus a working Windows
+   > `ssh-agent` — **in that order**, since a passphrase without an agent removes Claude
+   > Code's unattended access entirely. On `Laptop_FN` the agent service is currently
+   > `Stopped` and `StartType: Disabled`, and enabling it failed with access denied. The
+   > decision is the operator's; whichever way it goes, the convention is owned by
+   > `Haxe_agent_system` and a divergence belongs in its ADR-010, not only here.
 5. **The server's host key is pinned in this repo** as
    `SHA256:Zl0i+LIcg4GfNrkREfguhyIIwDax+ilmms1MHsAWhBQ` (ED25519), and a new machine's
    first connection is accepted only against a fingerprint confirmed from an already
@@ -85,8 +93,8 @@ enrollment procedure written in `STATUS.md`:
 |---|---|---|
 | Home desktop | yes | yes, 2026-06-01 update |
 | Office desktop | yes | yes, 2026-06-01 update |
-| `Laptop_FN` | yes, 2026-09-24 — **but key has no passphrase**, see decision 4 | amendment still to be proposed from `Haxe_agent_system` |
-| `komputer-marketing` | no | no |
+| `Laptop_FN` | yes, 2026-09-24 — key passphrase-free per the shared convention, see decision 4 | yes, amended 2026-09-24 |
+| `komputer-marketing` | no | named as still unkeyed in the 2026-09-24 amendment |
 
 ## Verification, 2026-09-24
 
@@ -111,17 +119,16 @@ Enrollment was completed and confirmed end to end on the day of this ADR:
   standing authorisation already in `CLAUDE.md` and its guardrails: this repo's own
   Compose project and nginx file only, no `.env` edits without per-task confirmation,
   `sudo nginx -t` before every reload.
-- **Read-only diagnostics are unattended; anything needing `sudo` is not.** Measured
-  2026-09-24: `sudo -n true` fails on the server, so `franciszek` must type a password for
-  every privileged command. `docker` works without `sudo` because the user is in the
-  `docker` group (agent-system ADR-010, decision 4), but `sudo nginx -t` and a reload
-  cannot be run from a Claude Code tool call on their own. Either the operator supplies the
-  password interactively at that moment, or a narrowly scoped `NOPASSWD` sudoers rule is
-  added — and that rule would be an ADR-010 change owned by `Haxe_agent_system`, not
-  something this repo may make.
+- **Privileged commands run unattended, because `sudo` is passwordless.** Measured
+  2026-09-24: `sudo -n true` returns 0 and `sudo -n nginx -t` reports the configuration
+  valid, and `sudo -n -l` shows `(ALL) NOPASSWD: ALL` for `franciszek`. This matches what
+  `Haxe_agent_system` documents ("docker group + passwordless sudo") and confirms the
+  `sudo nginx -t` guardrail above is actually executable from a tool call. It also means a
+  mistaken command carries root's consequences with no password step to interrupt it, which
+  is the real reason the guardrails in the bullet above are worded as narrowly as they are.
 - The number of keys that can reach a production host grows with each workstation, and
-  every one of them is a Windows machine holding a private key — and on `Laptop_FN` that key
-  is currently unencrypted, see decision 4. That
+  every one of them is a Windows machine holding a private key that, by the convention in
+  decision 4, carries no passphrase. That
   is accepted for a single-operator system; the mitigation is that keys are per-machine,
   so losing one machine means revoking one line of `~/.ssh/authorized_keys` rather than
   rotating a shared secret. Revocation is an ADR-010 operation, performed from
