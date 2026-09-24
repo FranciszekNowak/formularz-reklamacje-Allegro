@@ -1,7 +1,8 @@
 # ADR-001: Operator workstations and how Claude Code reaches the VPS
 
 Date: 2026-09-24
-Status: Accepted (enrollment of `Laptop_FN` in progress, see "Enrollment state")
+Status: Accepted. `Laptop_FN` enrolled and verified 2026-09-24; decision 4 is not yet
+satisfied — see the note under it.
 
 ## Context
 
@@ -60,6 +61,16 @@ enrollment procedure written in `STATUS.md`:
    that the passphrase is typed once per boot by the operator and Claude Code can use the
    key unattended afterwards. The passphrase itself is never stored in this repo, never
    passed on a command line, and never typed into a Claude Code tool call.
+
+   > **Not satisfied yet — measured 2026-09-24.** The keypair generated on `Laptop_FN` has
+   > **no passphrase**. It authenticated to the server with `ssh -o BatchMode=yes` while the
+   > `ssh-agent` service was still `Stopped` and `Disabled`, which is only possible if the
+   > client can read the private key unaided. Production access therefore rests on file
+   > permissions alone (`icacls` confirms the file is readable only by `franc`, `SYSTEM` and
+   > Administrators). The remedy is `ssh-keygen -p -f $env:USERPROFILE\.ssh\id_ed25519`
+   > followed by the agent setup in decision 4. Until then this is an open risk of exactly
+   > the shape as ADR-010's original password-authentication deferral, which stood for two
+   > months before it was closed.
 5. **The server's host key is pinned in this repo** as
    `SHA256:Zl0i+LIcg4GfNrkREfguhyIIwDax+ilmms1MHsAWhBQ` (ED25519), and a new machine's
    first connection is accepted only against a fingerprint confirmed from an already
@@ -74,17 +85,35 @@ enrollment procedure written in `STATUS.md`:
 |---|---|---|
 | Home desktop | yes | yes, 2026-06-01 update |
 | Office desktop | yes | yes, 2026-06-01 update |
-| `Laptop_FN` | in progress, 2026-09-24 | amendment still to be proposed from `Haxe_agent_system` |
+| `Laptop_FN` | yes, 2026-09-24 — **but key has no passphrase**, see decision 4 | amendment still to be proposed from `Haxe_agent_system` |
 | `komputer-marketing` | no | no |
+
+## Verification, 2026-09-24
+
+Enrollment was completed and confirmed end to end on the day of this ADR:
+
+- The public key was appended from the home desktop. The server's `authorized_keys` then
+  listed three keys — `franciszek-haxe`, `haxe_biuro2` and
+  `franciszek@Laptop_FN` (`SHA256:mZHvDaCSdYVR4KM8r8PPBrp9YZAtrMBwLtSr9G69U7E`) — so the
+  append did not disturb the two existing desktops.
+- The host key was read as `/etc/ssh/ssh_host_ed25519_key.pub` from inside that trusted
+  session and matched the pinned fingerprint. The `known_hosts` entry on `Laptop_FN` was
+  then written only after re-scanning the key and checking its fingerprint against that
+  confirmed value, rather than by accepting the key on first connection.
+- `ssh -o BatchMode=yes -o StrictHostKeyChecking=yes franciszek@185.25.149.174` returned
+  host `vps57524999` as user `franciszek`, and the read-only diagnostics that `CLAUDE.md`
+  authorises (`free -h`, `docker ps`) both worked.
+
 
 ## Consequences
 
-- Claude Code can operate the VPS from this laptop once enrollment completes, under the
+- Claude Code can operate the VPS from this laptop, verified 2026-09-24, under the
   standing authorisation already in `CLAUDE.md` and its guardrails: this repo's own
   Compose project and nginx file only, no `.env` edits without per-task confirmation,
   `sudo nginx -t` before every reload.
 - The number of keys that can reach a production host grows with each workstation, and
-  every one of them is a Windows desktop holding a passphrase-protected private key. That
+  every one of them is a Windows machine holding a private key — and on `Laptop_FN` that key
+  is currently unencrypted, see decision 4. That
   is accepted for a single-operator system; the mitigation is that keys are per-machine,
   so losing one machine means revoking one line of `~/.ssh/authorized_keys` rather than
   rotating a shared secret. Revocation is an ADR-010 operation, performed from

@@ -45,6 +45,13 @@ Nothing is built or deployed.
   on 2026-09-24, fingerprint
   `SHA256:mZHvDaCSdYVR4KM8r8PPBrp9YZAtrMBwLtSr9G69U7E`. It is not yet in the server's
   `authorized_keys`.
+- **Memory headroom, measured 2026-09-24 over SSH from `Laptop_FN`:** `free -h` reports
+  7.5 Gi total, 4.1 Gi used, **3.4 Gi available**. Eleven containers are running
+  (`n8n-main`, `n8n-worker`, `n8n-postgres`, `n8n-redis`, `litellm`, `docling`,
+  `queue-consumer`, `zip-extractor`, `session-waiter`, `haxe-flow-grafana`,
+  `book-notes-mcp`). This is below the ≥ 4 Gi that `CLAUDE.md` says Docling needs to load
+  its models, so Block 0 should treat headroom as a live constraint rather than a
+  formality.
 
 ## 4. Keying an unkeyed machine (Franciszek, from the home desktop)
 
