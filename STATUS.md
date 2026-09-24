@@ -12,7 +12,7 @@ Nothing is built or deployed.
 
 ## 2. Decided
 
-- **Subdomain `reklamacje.skalus.com`, served from the existing VPS IP
+- **Subdomain `reklamacje.skalus.com.pl`, served from the existing VPS IP
   `185.25.149.174`.** No second IPv4. nginx already serves `agents.skalus.com`,
   `flow.skalus.com` and the book-notes server from that one IP by hostname
   (SNI), and certbot issues one certificate per subdomain. A second IP would be
@@ -20,16 +20,25 @@ Nothing is built or deployed.
   `Haxe_agent_system`, justified only by something like separate IP reputation
   for outgoing mail. Decided by Franciszek, 2026-09-23. To be recorded in the
   ADR that confirms what this repo owns.
+- **The domain is `skalus.com.pl`, not `skalus.com`.** Changed by Franciszek on
+  2026-09-24. The 2026-09-23 plan was `reklamacje.skalus.com`, but that name
+  already had an A record pointing to another host (see section 3). The two are
+  separate DNS zones, so the form's name differs from the other services on
+  the VPS, which all use `skalus.com`. That is harmless for nginx and certbot,
+  which match each hostname on its own.
 
 ## 3. Blockers found on 2026-09-23 (measured, not assumed)
 
-- **DNS points elsewhere.** `reklamacje.skalus.com` already has an explicit A
-  record to `5.252.231.210`, whose reverse DNS is `d9.thecamels.org` (TheCamels
-  hosting). A random subdomain does not resolve, so this is not a wildcard.
-  `skalus.com` itself is on `91.198.146.229`. The zone is at tld.pl
-  (`dns1.tld.pl`). Before certbot can issue a certificate, the record must point
-  to `185.25.149.174`. First find out who created it and whether anything
-  still uses it.
+- **Resolved 2026-09-24 by switching domain: DNS pointed elsewhere.**
+  `reklamacje.skalus.com` has an explicit A record to `5.252.231.210`, whose
+  reverse DNS is `d9.thecamels.org` (TheCamels hosting). A random subdomain
+  does not resolve, so this is not a wildcard. `skalus.com` itself is on
+  `91.198.146.229`, and its zone is at tld.pl (`dns1.tld.pl`). This repo no
+  longer uses that name, and the record is left untouched. Instead,
+  `reklamacje.skalus.com.pl` (zone also at tld.pl, `dns1`–`dns3.tld.pl`) has an A
+  record to `185.25.149.174` with a TTL of 300 seconds. On 2026-09-24 that
+  answer was returned by the local resolver, 1.1.1.1, 8.8.8.8 and
+  `dns1.tld.pl`, so DNS no longer blocks certbot.
 - **SSH from the marketing desktop (`komputer-marketing`) is not set up.** It
   has no `~/.ssh` folder, so it has no key and no known-hosts entry. Only the
   home and office desktops are keyed (agent system ADR-010), and SSH password
@@ -89,4 +98,4 @@ Nothing is built or deployed.
 
 Write the first master plan in `architecture/build-plans/`, starting with Block 0
 (memory headroom via `free -h` and `docker stats`, nginx and certbot readiness
-for a new vhost, DNS for `reklamacje.skalus.com`).
+for a new vhost, and a DNS re-check for `reklamacje.skalus.com.pl`).
