@@ -1,4 +1,4 @@
-# Status & session log — 23 Sept 2026
+# Status & session log — 24 Sept 2026 (previous entry 23 Sept)
 
 Handoff note. Read this first when picking the work back up.
 
@@ -36,8 +36,21 @@ Nothing is built or deployed.
   login is disabled. Live host key fingerprint read from here:
   `SHA256:Zl0i+LIcg4GfNrkREfguhyIIwDax+ilmms1MHsAWhBQ` (ED25519). Not yet
   confirmed from a trusted connection.
+- **A third unkeyed machine, found 2026-09-24: this laptop `Laptop_FN`** (Windows 11 Home
+  10.0.26200, user `franc`). It also had no `~/.ssh` directory. Two measurements here
+  change the procedure in section 4, both recorded in ADR-001: the `ssh-agent` service is
+  `Disabled` rather than merely stopped, and Git Bash's bundled `ssh` shadows the Windows
+  OpenSSH client on `PATH` while being unable to see the Windows agent, so Claude Code
+  must reach the server through PowerShell. An ed25519 keypair was generated on the laptop
+  on 2026-09-24, fingerprint
+  `SHA256:mZHvDaCSdYVR4KM8r8PPBrp9YZAtrMBwLtSr9G69U7E`. It is not yet in the server's
+  `authorized_keys`.
 
-## 4. Keying the marketing desktop (Franciszek, planned from the home desktop)
+## 4. Keying an unkeyed machine (Franciszek, from the home desktop)
+
+> Applies to both `komputer-marketing` and `Laptop_FN`. ADR-001 corrects step 4 below: the
+> agent service must be *enabled* before it can start, and only the Windows OpenSSH client
+> can use the key once loaded.
 
 1. On the marketing desktop, in a normal PowerShell window (not the `!` prefix,
    which cannot answer prompts):
