@@ -111,6 +111,14 @@ Enrollment was completed and confirmed end to end on the day of this ADR:
   standing authorisation already in `CLAUDE.md` and its guardrails: this repo's own
   Compose project and nginx file only, no `.env` edits without per-task confirmation,
   `sudo nginx -t` before every reload.
+- **Read-only diagnostics are unattended; anything needing `sudo` is not.** Measured
+  2026-09-24: `sudo -n true` fails on the server, so `franciszek` must type a password for
+  every privileged command. `docker` works without `sudo` because the user is in the
+  `docker` group (agent-system ADR-010, decision 4), but `sudo nginx -t` and a reload
+  cannot be run from a Claude Code tool call on their own. Either the operator supplies the
+  password interactively at that moment, or a narrowly scoped `NOPASSWD` sudoers rule is
+  added — and that rule would be an ADR-010 change owned by `Haxe_agent_system`, not
+  something this repo may make.
 - The number of keys that can reach a production host grows with each workstation, and
   every one of them is a Windows machine holding a private key — and on `Laptop_FN` that key
   is currently unencrypted, see decision 4. That
